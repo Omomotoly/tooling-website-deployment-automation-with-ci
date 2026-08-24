@@ -226,7 +226,7 @@ A webhook is an HTTP POST callback triggered by an event. In our case, every tim
 
 Go to your GitHub repository → Settings → Webhooks → Add webhook. Make the following input
 
-Payload URL: http://<jenkins-public-ip>:8080/github-webhook/
+Payload URL: http://jenkins-public-ip:8080/github-webhook/
 
 Content type: application/json
 
@@ -441,20 +441,25 @@ If you see the updated content from GitHub, then deployment is working correctly
 ## Challenges Encountered
 **Accidentally Adding Too Many SSH Action Blocks in Jenkins**
 
-The Problem: While setting up the post-build step to send files over SSH, I accidentally clicked "Add" three times instead of once. I configured the first block properly to send all workspace files (**) to /mnt/apps on the NFS server, but left the other two blank blocks sitting there.
+**The Problem**: While setting up the post-build step to send files over SSH, I accidentally clicked "Add" three times instead of once. I configured the first block properly to send all workspace files (**) to /mnt/apps on the NFS server, but left the other two blank blocks sitting there.
 
-Why It Broke: Jenkins tried to process all three SSH blocks one after another. Because those extra two blocks had empty parameters, the build threw an exception and failed every time. I tried uninstalling the Publish Over SSH plugin to reset things, but Jenkins just put it in a "Pending Uninstall" state and kept the blank fields right where they were.
+**Error Message in Console Output**: Exception when publishing, exception message [An SSH Transfer Set must not have an empty Source files and an empty Exec command - the transfer set should transfer files, execute a command or do both]
+Build step 'Send build artifacts over SSH' changed build result to UNSTABLE
+Finished: UNSTABLE
+![alt text](images/error.png)
 
-How I Fixed It: Rather than restarting the entire Jenkins server, I just filled out those two extra blocks with the exact same NFS settings. I pushed a quick update to README.md to trigger the GitHub webhook, and the build went through clean. Instead of shipping just 24 files, it actually copied 24+24+24 files across all three steps and finished with a green light.
+**Why It Broke**: Jenkins tried to process all three SSH blocks one after another. Because those extra two blocks had empty parameters, the build threw an exception and failed every time. I tried uninstalling the Publish Over SSH plugin to reset things, but Jenkins just put it in a "Pending Uninstall" state and kept the blank fields right where they were.
+
+**How I Fixed It**: Rather than restarting the entire Jenkins server, I just filled out those two extra blocks with the exact same NFS settings. I pushed a quick update to README.md to trigger the GitHub webhook, and the build went through clean. Instead of shipping just 24 files, it actually copied 24+24+24 files across all three steps and finished with a green light.
 
 ![alt text](images/36.png)
 
 **NFS Server Write Permission Denied During Artifact Transfer**
-The Problem: When Jenkins attempted to publish build artifacts over SSH to the NFS target directory (/mnt/apps), the transfer failed with a Permission denied error because the directory was owned by root and restricted write access.
+**The Problem**: When Jenkins attempted to publish build artifacts over SSH to the NFS target directory (/mnt/apps), the transfer failed with a Permission denied error because the directory was owned by root and restricted write access.
 
-How I Fixed It: Changed directory ownership to the SSH user (ec2-user) and modified access permissions on the NFS host to allow full write operations.
+**How I Fixed It**: Changed directory ownership to the SSH user (ec2-user) and modified access permissions on the NFS host to allow full write operations.
 
-Commands Executed:
+**Commands Executed**:
 ```
 sudo chown -R ec2-user:ec2-user /mnt/apps
 sudo chmod -R 777 /mnt/apps
